@@ -10,8 +10,40 @@ import (
 	"strings"
 )
 
+// latest encyrption method used in Magento 2
+func chacha20poly1305Encrypt(value string, key string, keyVersion string) (string, error) {
+	// Magento 2 const CIPHER_AEAD_CHACHA20POLY1305
+	cipherVersion := "3"
+
+	aead, err := chacha20poly1305.New([]byte(key))
+	if err != nil {
+		return "", nil
+	}
+
+	// Generate a nonce
+	nonce := make([]byte, chacha20poly1305.NonceSize)
+	rand.Read(nonce)
+
+	// encrypt
+	cipherText := aead.Seal(nil, nonce, []byte(value), nonce)
+
+	// nonce must be prepended onto the cipher string manually
+	cipherText = append(nonce, cipherText...)
+
+	// base64 encode the cipher text as Magento does
+	cipherTextEncoded := base64.StdEncoding.EncodeToString(cipherText)
+
+	// return in magneto 2 formatting
+	return fmt.Sprintf("%s:%s:%s", keyVersion, cipherVersion, cipherTextEncoded), nil
+}
+
 func chacha20poly1305Decrypt(value string, key string) (string, error) {
-	decodedValue, err := base64.StdEncoding.DecodeString(value)
+	// get cipher text from ':' separated value
+	parts := strings.Split(value, ":")
+	cipherText := parts[2]
+
+	// cipher text is base64 encoded after encyption so we need to decode it
+	decodedValue, err := base64.StdEncoding.DecodeString(cipherText)
 	if err != nil {
 		return "", err
 	}
@@ -21,6 +53,7 @@ func chacha20poly1305Decrypt(value string, key string) (string, error) {
 		return "", nil
 	}
 
+	// nonce is prepended to the cipher text, we need to pull this to decrypt
 	nonce := decodedValue[:chacha20poly1305.NonceSize]
 	ciphertext := decodedValue[chacha20poly1305.NonceSize:]
 
@@ -49,7 +82,9 @@ func rijandel256Decrypt(encryptedData string, key string) (string, error) {
 	return decrypt, nil
 }
 
-func rijandel256Encrypt(value string, key string) (string, error) {
+func rijandel256Encrypt(value string, key string, keyVersion string) (string, error) {
+	cipherVersion := "2"
+
 	iv, err := generateInitVector(32, []byte("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"))
 	if err != nil {
 		return "", nil
@@ -61,10 +96,7 @@ func rijandel256Encrypt(value string, key string) (string, error) {
 		return "", err
 	}
 
-	// TODO: Should not be hardcoded
-	keyVersion := "1"
-	cipherVersion := "2"
-
+	// return in magento 2 ':' separated format
 	return fmt.Sprintf("%s:%s:%s:%s", keyVersion, cipherVersion, string(iv), encrypt), nil
 }
 
