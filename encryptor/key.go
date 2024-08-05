@@ -1,0 +1,5 @@
+package encryptor
+
+func GetKeys() {
+	
+}

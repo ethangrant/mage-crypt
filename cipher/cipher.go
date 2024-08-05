@@ -1,4 +1,4 @@
-package main
+package cipher
 
 import (
 	"crypto/rand"
@@ -50,7 +50,7 @@ func chacha20poly1305Decrypt(value string, key string) (string, error) {
 
 	aead, err := chacha20poly1305.New([]byte(key))
 	if err != nil {
-		return "", nil
+		return "", err
 	}
 
 	// nonce is prepended to the cipher text, we need to pull this to decrypt
@@ -59,7 +59,7 @@ func chacha20poly1305Decrypt(value string, key string) (string, error) {
 
 	decrypted, err := aead.Open(nil, nonce, ciphertext, nonce)
 	if err != nil {
-		return "", nil
+		return "", err
 	}
 
 	return string(decrypted), nil
@@ -112,8 +112,6 @@ func generateInitVector(length int, charSet []byte) ([]byte, error) {
 
 		iv[i] = charSet[index.Int64()]
 	}
-
-	// iv = []byte("TUdKrDJ8GB0PJYkHLUcjS4RGylFfU4CR")
 
 	return iv, nil
 }
