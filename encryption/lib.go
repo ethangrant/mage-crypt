@@ -1,3 +1,5 @@
+// Source https://gist.githubusercontent.com/slifer2015/0d182d99280758a154e3fe12e48664d4/raw/365cacea779e3e733abd1b1d6f3669816d5272a7/cbc.go
+// AES 256 CBC 32byte block size IV support golang implementation
 package encryption
 
 import (

@@ -1,15 +1,31 @@
 package cfg
 
-import(
+import (
 	"github.com/sansecio/gocommerce/phpcfg"
+	"strings"
 )
 
+// load all crypt keys into slice
 func GetCryptKeys(envPath string) ([]string, error) {
-	var keys []string
-	config, err := phpcfg.Parse([]byte(envPath))
+	config, err := phpcfg.ParsePath(envPath)
 	if err != nil {
 		return nil, err
 	}
 
-	return keys, nil
+	keys := config["root.crypt.key"]
+	keySlice := strings.Split(keys, " ")
+
+	return keySlice, nil
+}
+
+// grab latest key from config.php
+func GetLatestKey(envPath string) (string, error) {
+	keys, err := GetCryptKeys(envPath)
+	if err != nil {
+		return "", err
+	}
+
+	key := keys[len(keys)-1]
+
+	return key, nil
 }

@@ -1,6 +1,6 @@
 package cfg
 
-import(
+import (
 	"github.com/sansecio/gocommerce"
 )
 

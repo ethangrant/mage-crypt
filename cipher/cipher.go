@@ -3,15 +3,48 @@ package cipher
 import (
 	"crypto/rand"
 	"encoding/base64"
+	"errors"
 	"fmt"
-	"github.com/ethangrant/mage-crypt/encryption"
-	"golang.org/x/crypto/chacha20poly1305"
 	"math/big"
 	"strings"
+
+	"github.com/ethangrant/mage-crypt/encryption"
+	"golang.org/x/crypto/chacha20poly1305"
 )
 
+type Cipher interface {
+	Encrypt(plaintext string, key string, keyVersion string) (string, error)
+	Decrypt(value string, key string) (string, error)
+}
+
+type Chacha20poly1305 struct {
+}
+
+type Rijandel256 struct {
+}
+
+// attempt to get appropriate cipher to decrypt value
+func GetCipherByValue(value string) (Cipher, error) {
+	parts := strings.Split(value, ":")
+
+	if len(parts) < 2 {
+		return nil, fmt.Errorf("no cipher available to decrypt the value: %s", value)
+	}
+
+	cipherVersion := parts[1]
+
+	switch cipherVersion {
+	case "2":
+		return Rijandel256{}, nil
+	case "3":
+		return Chacha20poly1305{}, nil
+	}
+
+	return nil, fmt.Errorf("no cipher available to decrypt the value: %s", value)
+}
+
 // latest encyrption method used in Magento 2
-func chacha20poly1305Encrypt(value string, key string, keyVersion string) (string, error) {
+func (c Chacha20poly1305) Encrypt(plaintext string, key string, keyVersion string) (string, error) {
 	// Magento 2 const CIPHER_AEAD_CHACHA20POLY1305
 	cipherVersion := "3"
 
@@ -25,7 +58,7 @@ func chacha20poly1305Encrypt(value string, key string, keyVersion string) (strin
 	rand.Read(nonce)
 
 	// encrypt
-	cipherText := aead.Seal(nil, nonce, []byte(value), nonce)
+	cipherText := aead.Seal(nil, nonce, []byte(plaintext), nonce)
 
 	// nonce must be prepended onto the cipher string manually
 	cipherText = append(nonce, cipherText...)
@@ -37,9 +70,13 @@ func chacha20poly1305Encrypt(value string, key string, keyVersion string) (strin
 	return fmt.Sprintf("%s:%s:%s", keyVersion, cipherVersion, cipherTextEncoded), nil
 }
 
-func chacha20poly1305Decrypt(value string, key string) (string, error) {
+func (c Chacha20poly1305) Decrypt(value string, key string) (string, error) {
 	// get cipher text from ':' separated value
-	parts := strings.Split(value, ":")
+	parts, err := getParts(value, 3)
+	if err != nil {
+		return "", err
+	}
+
 	cipherText := parts[2]
 
 	// cipher text is base64 encoded after encyption so we need to decode it
@@ -55,9 +92,9 @@ func chacha20poly1305Decrypt(value string, key string) (string, error) {
 
 	// nonce is prepended to the cipher text, we need to pull this to decrypt
 	nonce := decodedValue[:chacha20poly1305.NonceSize]
-	ciphertext := decodedValue[chacha20poly1305.NonceSize:]
+	decodedCiphertext := decodedValue[chacha20poly1305.NonceSize:]
 
-	decrypted, err := aead.Open(nil, nonce, ciphertext, nonce)
+	decrypted, err := aead.Open(nil, nonce, decodedCiphertext, nonce)
 	if err != nil {
 		return "", err
 	}
@@ -65,13 +102,38 @@ func chacha20poly1305Decrypt(value string, key string) (string, error) {
 	return string(decrypted), nil
 }
 
-// Magento encrypted data will be formatted like 'keyversion:cipherversion:iv:encrypteddata'
-func rijandel256Decrypt(encryptedData string, key string) (string, error) {
+func (r Rijandel256) Encrypt(plaintext string, key string, keyVersion string) (string, error) {
+	cipherVersion := "2"
+
+	iv, err := generateInitVector(32, []byte("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"))
+	if err != nil {
+		return "", nil
+	}
+
+	// magento encrypts then base64 encodes. Rijndael256CBCEncrypt32 does both of these actions.
+	encrypt, err := encryption.Rijndael256CBCEncrypt32([]byte(key), iv, plaintext)
+	if err != nil {
+		return "", err
+	}
+
+	// return in magento 2 ':' separated format
+	return fmt.Sprintf("%s:%s:%s:%s", keyVersion, cipherVersion, string(iv), encrypt), nil
+}
+
+func (r Rijandel256) Decrypt(value string, key string) (string, error) {
 	// extract iv and cipher text from magento encrypted value
-	parts := strings.Split(encryptedData, ":")
+	parts, err := getParts(value, 4)
+	if err != nil {
+		return "", err
+	}
+
 	iv := parts[2]
 	ciphertext := parts[3]
 	keyByteSlice := []byte(key)
+
+	if len(iv) != 32 {
+		return "", errors.New("init vector must be a string of 32 bytes")
+	}
 
 	// Rijndael256CBCDecrypt32 decodes and then decrypts.
 	decrypt, err := encryption.Rijndael256CBCDecrypt32(keyByteSlice, []byte(iv), ciphertext)
@@ -82,22 +144,15 @@ func rijandel256Decrypt(encryptedData string, key string) (string, error) {
 	return decrypt, nil
 }
 
-func rijandel256Encrypt(value string, key string, keyVersion string) (string, error) {
-	cipherVersion := "2"
+// extract value into individual parts
+func getParts(value string, expected int) ([]string, error) {
+	parts := strings.Split(value, ":")
 
-	iv, err := generateInitVector(32, []byte("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"))
-	if err != nil {
-		return "", nil
+	if len(parts) < expected {
+		return nil, fmt.Errorf("invalid format for encrypted valeu, %d parts expected", expected)
 	}
 
-	// magento encrypts then base64 encodes. Rijndael256CBCEncrypt32 does both of these actions.
-	encrypt, err := encryption.Rijndael256CBCEncrypt32([]byte(key), iv, value)
-	if err != nil {
-		return "", err
-	}
-
-	// return in magento 2 ':' separated format
-	return fmt.Sprintf("%s:%s:%s:%s", keyVersion, cipherVersion, string(iv), encrypt), nil
+	return parts, nil
 }
 
 // Generates a random init vector string used in encryption

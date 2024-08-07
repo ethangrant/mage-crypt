@@ -1,13 +1,12 @@
-/*
-Copyright © 2024 NAME HERE <EMAIL ADDRESS>
-
-*/
 package cmd
 
 import (
 	"fmt"
+	"github.com/ethangrant/mage-crypt/cfg"
+	"github.com/ethangrant/mage-crypt/db"
 	"github.com/ethangrant/mage-crypt/encryptor"
 	"github.com/spf13/cobra"
+	"os"
 )
 
 // encryptConfigCmd represents the encryptConfig command
@@ -17,20 +16,38 @@ var encryptConfigCmd = &cobra.Command{
 
 	Run: func(cmd *cobra.Command, args []string) {
 		fmt.Println("encryptConfig called")
-		encryptor.CoreConfigData()
+		envPath, err := cmd.Flags().GetString("env")
+		if err != nil {
+			fmt.Println("There was an error parsing command flag 'env': ", err.Error())
+			return
+		}
+
+		// check env file exists
+		_, err = os.Stat(envPath)
+		if err != nil {
+			fmt.Printf("'%s' could not be found is the path correct?\n", envPath)
+			return
+		}
+
+		// get db connection
+		db, err := db.Connect(envPath)
+		if err != nil {
+			fmt.Println(err.Error())
+			return
+		}
+
+		// encrypt using the most recent crypt key
+		latestKey, err := cfg.GetLatestKey(envPath)
+		if err != nil {
+			fmt.Println("Failed to extract keys from env.php: ", err.Error())
+		}
+
+		encryptor.CoreConfigData(db, latestKey)
 	},
 }
 
 func init() {
 	rootCmd.AddCommand(encryptConfigCmd)
 
-	// Here you will define your flags and configuration settings.
-
-	// Cobra supports Persistent Flags which will work for this command
-	// and all subcommands, e.g.:
-	// encryptConfigCmd.PersistentFlags().String("foo", "", "A help for foo")
-
-	// Cobra supports local flags which will only run when this command
-	// is called directly, e.g.:
-	// encryptConfigCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
+	encryptConfigCmd.Flags().String("env", "app/etc/env.php", "Provide absolute or relative path to env.php")
 }

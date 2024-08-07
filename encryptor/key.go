@@ -1,5 +1,5 @@
 package encryptor
 
 func GetKeys() {
-	
+
 }

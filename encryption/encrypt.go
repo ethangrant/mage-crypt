@@ -1,8 +1,11 @@
+// Source https://gist.githubusercontent.com/slifer2015/0d182d99280758a154e3fe12e48664d4/raw/365cacea779e3e733abd1b1d6f3669816d5272a7/cbc.go
+// AES 256 CBC 32byte block size IV support golang implementation
 package encryption
 
 import (
 	"bytes"
 	"encoding/base64"
+	"errors"
 	"fmt"
 )
 
@@ -32,6 +35,9 @@ func Rijndael256CBCDecrypt32(key, iv []byte, cipherText string) (string, error) 
 	blockMode := NewCBCDecrypter(ciph, iv)
 
 	origData := make([]byte, len(cipherTextFinal))
+	if len(cipherTextFinal)%blockMode.BlockSize() != 0 {
+		return "", errors.New("ciphertext is not a multiple of the block size")
+	}
 
 	blockMode.CryptBlocks(origData, cipherTextFinal)
 	origData = unpadNullBytes(origData)
