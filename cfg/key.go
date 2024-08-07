@@ -1,8 +1,8 @@
 package cfg
 
 import (
-	"github.com/sansecio/gocommerce/phpcfg"
 	"strings"
+	"github.com/sansecio/gocommerce/phpcfg"
 )
 
 // load all crypt keys into slice
@@ -13,7 +13,7 @@ func GetCryptKeys(envPath string) ([]string, error) {
 	}
 
 	keys := config["root.crypt.key"]
-	keySlice := strings.Split(keys, " ")
+	keySlice := strings.Split(keys, "\n")
 
 	return keySlice, nil
 }
