@@ -1,8 +1,8 @@
 package cfg
 
 import (
-	"strings"
 	"github.com/sansecio/gocommerce/phpcfg"
+	"strings"
 )
 
 // load all crypt keys into slice
