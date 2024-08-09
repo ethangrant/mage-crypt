@@ -12,10 +12,9 @@ import (
 // encryptConfigCmd represents the encryptConfig command
 var encryptConfigCmd = &cobra.Command{
 	Use:   "encrypt:config",
-	Short: "Re-encrypt core_config_data.value using the latest encryption key.",
+	Short: "Re-encrypt `core_config_data.value` using the latest encryption key.",
 
 	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println("encryptConfig called")
 		envPath, err := cmd.Flags().GetString("env")
 		if err != nil {
 			fmt.Println("There was an error parsing command flag 'env': ", err.Error())
@@ -42,12 +41,17 @@ var encryptConfigCmd = &cobra.Command{
 			fmt.Println("Failed to extract keys from env.php: ", err.Error())
 		}
 
-		encryptor.CoreConfigData(db, latestKey)
+		err = encryptor.Config(db, latestKey)
+		if err != nil {
+			fmt.Println(err.Error())
+			return
+		}
 	},
 }
 
 func init() {
 	rootCmd.AddCommand(encryptConfigCmd)
 
-	encryptConfigCmd.Flags().String("env", "app/etc/env.php", "Provide absolute or relative path to env.php")
+	encryptConfigCmd.Flags().StringP("env", "e", "app/etc/env.php", "Provide absolute or relative path to env.php")
+	encryptConfigCmd.MarkFlagRequired("env")
 }
