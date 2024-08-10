@@ -21,6 +21,12 @@ var encryptConfigCmd = &cobra.Command{
 			return
 		}
 
+		dryRun, err := cmd.Flags().GetBool("dry-run")
+		if err != nil {
+			fmt.Println("There was an error parsing command flag 'dry-run': ", err.Error())
+			return
+		}
+
 		// check env file exists
 		_, err = os.Stat(envPath)
 		if err != nil {
@@ -41,7 +47,7 @@ var encryptConfigCmd = &cobra.Command{
 			fmt.Println("Failed to extract keys from env.php: ", err.Error())
 		}
 
-		err = encryptor.Config(db, latestKey)
+		err = encryptor.Config(db, latestKey, envPath, dryRun)
 		if err != nil {
 			fmt.Println(err.Error())
 			return
@@ -54,4 +60,6 @@ func init() {
 
 	encryptConfigCmd.Flags().StringP("env", "e", "app/etc/env.php", "Provide absolute or relative path to env.php")
 	encryptConfigCmd.MarkFlagRequired("env")
+
+	encryptConfigCmd.Flags().BoolP("dry-run", "d", true, "Dry-run will not perform any data updates, this flag defaults to true. Pass flag --dry-run=false to perform data updates. You should review dry-run output before doing this.")
 }

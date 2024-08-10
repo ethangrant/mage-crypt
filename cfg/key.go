@@ -13,6 +13,8 @@ type Key struct {
 	VersionId int
 }
 
+var keyCache map[int]Key
+
 // load all crypt keys into slice
 func GetCryptKeys(envPath string) ([]string, error) {
 	config, err := phpcfg.ParsePath(envPath)
@@ -54,14 +56,26 @@ func GetKeyByValue(envPath string, value string) (Key, error) {
 		return Key{Value: "", VersionId: 0}, err
 	}
 
+	cachedKey, ok := keyCache[keyVersion]
+	if ok {
+		return cachedKey, nil
+	}
+
 	keys, err := GetCryptKeys(envPath)
 	if err != nil {
 		return Key{Value: "", VersionId: 0}, err
 	}
 
+	if keyCache == nil {
+		keyCache = make(map[int]Key, len(keys))
+	}
+
 	for index, k := range keys {
 		if keyVersion == index {
-			return Key{Value: k, VersionId: keyVersion}, nil
+			key := Key{Value: k, VersionId: keyVersion}
+			keyCache[keyVersion] = key
+
+			return key, nil
 		}
 	}
 

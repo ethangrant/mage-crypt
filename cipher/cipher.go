@@ -43,6 +43,11 @@ func GetCipherByValue(value string) (Cipher, error) {
 	return nil, fmt.Errorf("no cipher available to decrypt the value: %s", value)
 }
 
+// latest cipher used by magento to encrypt all new values
+func GetLatestCipher() Cipher {
+	return Chacha20poly1305{}
+}
+
 // latest encyrption method used in Magento 2
 func (c Chacha20poly1305) Encrypt(plaintext string, key string, keyVersion string) (string, error) {
 	// Magento 2 const CIPHER_AEAD_CHACHA20POLY1305
