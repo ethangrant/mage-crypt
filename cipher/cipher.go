@@ -21,21 +21,35 @@ type Chacha20poly1305 struct {
 }
 
 type Rijandel256 struct {
+	generateInitVectorFunc func(int, []byte) ([]byte, error)
 }
 
 // attempt to get appropriate cipher to decrypt value
 func GetCipherByValue(value string) (Cipher, error) {
 	parts := strings.Split(value, ":")
+	partsCount := len(parts)
+	var cipherVersion string
+
+	if partsCount == 4 {
+		return Rijandel256{generateInitVectorFunc: generateInitVector}, nil
+	} else if partsCount == 3 {
+		cipherVersion = parts[1]
+	} else if partsCount == 2 {
+		cipherVersion = parts[0]
+	} else if partsCount == 1 {
+		// blowfish
+		return nil, fmt.Errorf("blowfish decrypt currently unavailable to decrypt value: %s", value)
+	} else {
+		return nil, fmt.Errorf("no cipher available to decrypt the value: %s", value)	
+	}
 
 	if len(parts) < 2 {
 		return nil, fmt.Errorf("no cipher available to decrypt the value: %s", value)
 	}
 
-	cipherVersion := parts[1]
-
 	switch cipherVersion {
 	case "2":
-		return Rijandel256{}, nil
+		return Rijandel256{generateInitVectorFunc: generateInitVector}, nil
 	case "3":
 		return Chacha20poly1305{}, nil
 	}
@@ -107,10 +121,14 @@ func (c Chacha20poly1305) Decrypt(value string, key string) (string, error) {
 	return string(decrypted), nil
 }
 
+func NewRijandel256() Rijandel256 {
+	return Rijandel256{generateInitVectorFunc: generateInitVector}
+}
+
 func (r Rijandel256) Encrypt(plaintext string, key string, keyVersion string) (string, error) {
 	cipherVersion := "2"
 
-	iv, err := generateInitVector(32, []byte("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"))
+	iv, err := r.generateInitVectorFunc(32, []byte("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"))
 	if err != nil {
 		return "", nil
 	}
@@ -126,14 +144,23 @@ func (r Rijandel256) Encrypt(plaintext string, key string, keyVersion string) (s
 }
 
 func (r Rijandel256) Decrypt(value string, key string) (string, error) {
-	// extract iv and cipher text from magento encrypted value
-	parts, err := getParts(value, 4)
-	if err != nil {
-		return "", err
+	var ciphertext string
+	parts := strings.Split(value, ":")
+	partCount := len(parts)
+
+	// when dealing with a value that does not have an init vector we will default to nil byte slice
+	nilIv := make([]byte, 32)
+	iv := string(nilIv)
+
+	if partCount == 3 {
+		ciphertext = parts[2]
 	}
 
-	iv := parts[2]
-	ciphertext := parts[3]
+	if partCount == 4 {
+		iv = parts[2]
+		ciphertext = parts[3]
+	}
+
 	keyByteSlice := []byte(key)
 
 	if len(iv) != 32 {

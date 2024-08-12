@@ -13,7 +13,6 @@ import (
 
 // re-encrypt core_config_data.value column
 func Config(db *sql.DB, latestKey cfg.Key, envPath string, dryRun bool) error {
-	latestCipher := cipher.GetLatestCipher()
 	configModel := model.NewCoreConfigDataModel(db)
 	configRows, err := configModel.GetEncryptedValues(latestKey)
 	if err != nil {
@@ -21,14 +20,33 @@ func Config(db *sql.DB, latestKey cfg.Key, envPath string, dryRun bool) error {
 	}
 
 	rowCount := len(configRows)
-
 	if rowCount == 0 {
 		return errors.New("found 0 records to re-encrypt")
 	}
 
 	fmt.Printf("Found %d records to re-encrypt \n\n", rowCount)
+	encryptedRows := processRows(configRows, latestKey, envPath)
 
+	// dry-run quit early before inserts
+	if dryRun {
+		return nil
+	}
+
+	err = configModel.InsertMultipleEncryptedValues(encryptedRows)
+	if err != nil {
+		return fmt.Errorf("failed to insert re-encrypted values with error %v", err)
+	}
+
+	fmt.Println("Successfully re-encrypted core_config_data!")
+
+	return nil
+}
+
+
+func processRows(configRows []model.CoreConfigDataRow, latestKey cfg.Key, envPath string) []model.CoreConfigDataRow {
+	latestCipher := cipher.GetLatestCipher()
 	rencryptedRows := []model.CoreConfigDataRow{}
+
 	for _, configRow := range configRows {
 		fmt.Println("path: ", configRow.Path)
 		fmt.Println("ciphertext: ", configRow.Value)
@@ -71,17 +89,5 @@ func Config(db *sql.DB, latestKey cfg.Key, envPath string, dryRun bool) error {
 		fmt.Println()
 	}
 
-	// dry-run quit early before inserts
-	if dryRun {
-		return nil
-	}
-
-	err = configModel.InsertMultipleEncryptedValues(rencryptedRows)
-	if err != nil {
-		return fmt.Errorf("failed to insert re-encrypted values with error %v", err)
-	}
-
-	fmt.Println("Successfully re-encrypted core_config_data!")
-
-	return nil
+	return rencryptedRows
 }
