@@ -42,7 +42,6 @@ func Config(db *sql.DB, latestKey cfg.Key, envPath string, dryRun bool) error {
 	return nil
 }
 
-
 func processRows(configRows []model.CoreConfigDataRow, latestKey cfg.Key, envPath string) []model.CoreConfigDataRow {
 	latestCipher := cipher.GetLatestCipher()
 	rencryptedRows := []model.CoreConfigDataRow{}

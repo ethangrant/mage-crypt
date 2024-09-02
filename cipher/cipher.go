@@ -30,17 +30,21 @@ func GetCipherByValue(value string) (Cipher, error) {
 	partsCount := len(parts)
 	var cipherVersion string
 
+	// keyversion:cipherversion:initvector:ciphertext
 	if partsCount == 4 {
 		return Rijandel256{generateInitVectorFunc: generateInitVector}, nil
+		// keyversion:cipherversion:ciphertext
 	} else if partsCount == 3 {
 		cipherVersion = parts[1]
+		// cipherversion:ciphertext
 	} else if partsCount == 2 {
 		cipherVersion = parts[0]
+		// ciphertext
 	} else if partsCount == 1 {
 		// blowfish
 		return nil, fmt.Errorf("blowfish decrypt currently unavailable to decrypt value: %s", value)
 	} else {
-		return nil, fmt.Errorf("no cipher available to decrypt the value: %s", value)	
+		return nil, fmt.Errorf("no cipher available to decrypt the value: %s", value)
 	}
 
 	if len(parts) < 2 {

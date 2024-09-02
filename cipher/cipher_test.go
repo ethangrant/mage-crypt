@@ -233,3 +233,36 @@ func TestRijandel256Decrypt(t *testing.T) {
 		}
 	}
 }
+
+type GetCipherByValueTestCase struct {
+	name           string
+	value          string
+	expectedCipher Cipher
+	wantErr        bool
+}
+
+func TestGetCipherByValue(t *testing.T) {
+	rijandelCipher := NewRijandel256()
+	chachaCipher := Chacha20poly1305{}
+
+	testcases := []GetCipherByValueTestCase{
+		{name: "encrypted value with 4 parts", value: "0:2:twXfM7zUHOQBvKELQ9PWyAeOA6EujEyd:dmeGNyV079Ap0X8cvBiGuoD9a0U2xvs8f3WiIm7fRp7KlGzn6u1BnCnzd3kM5oVkhbQppN/KrIXnQh0R6+kIPg==", expectedCipher: rijandelCipher, wantErr: false},
+		{name: "encrypted value with 3 parts rijandael cipher", value: "0:2:dJzuS/RUMqoBgwolgWsR7vxzRoxHkVmY/mUM29ovze0=", expectedCipher: rijandelCipher, wantErr: false},
+		{name: "encrypted value with 3 parts chacha cipher", value: "1:3:VGPrZUdRHxGAY9y932dC1u67eoEcAx/gVNqj4CXaxFpZac6Jw+pardKnOk3z93vnFf0=", expectedCipher: chachaCipher, wantErr: false},
+		{name: "encrypted value with 1 part", value: "VGPrZUdRHxGAY9y932dC1u67eoEcAx/gVNqj4CXaxFpZac6Jw+pardKnOk3z93vnFf0=", expectedCipher: nil, wantErr: true},
+	}
+
+	for _, tt := range testcases {
+		t.Run(tt.name, func(t *testing.T) {
+			cipher, err := GetCipherByValue(tt.value)
+
+			if (err != nil) && tt.wantErr == false {
+				t.Fatalf("Expected no error instead got %v", err)
+			}
+
+			if fmt.Sprint(cipher) != fmt.Sprint(tt.expectedCipher) {
+				t.Fatalf("Expected cipher %v, got %v", tt.expectedCipher, cipher)
+			}
+		})
+	}
+}
