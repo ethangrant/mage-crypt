@@ -13,7 +13,7 @@ type encryptor struct {
 	DryRun    bool
 }
 
-func NewEncryptor(db *sql.DB, latestKey cfg.Key, envPath string, dryRun bool) *encryptor {
+func New(db *sql.DB, latestKey cfg.Key, envPath string, dryRun bool) *encryptor {
 	return &encryptor{
 		Db:        db,
 		LatestKey: latestKey,

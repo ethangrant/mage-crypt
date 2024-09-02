@@ -12,7 +12,7 @@ import (
 // encryptColumnCmd represents the encryptColumn command
 var encryptColumnCmd = &cobra.Command{
 	Use:   "encrypt:column",
-	Short: "Re-encrypt `core_config_data.value` using the latest encryption key.",
+	Short: "Re-encrypt the provided table column using the latest encryption key.",
 
 	Run: func(cmd *cobra.Command, args []string) {
 		envPath, err := cmd.Flags().GetString("env")
@@ -24,6 +24,18 @@ var encryptColumnCmd = &cobra.Command{
 		dryRun, err := cmd.Flags().GetBool("dry-run")
 		if err != nil {
 			fmt.Println("There was an error parsing command flag 'dry-run': ", err.Error())
+			return
+		}
+
+		table, err := cmd.Flags().GetString("table")
+		if err != nil {
+			fmt.Println("There was an error parsing command flag 'table': ", err.Error())
+			return
+		}
+
+		column, err := cmd.Flags().GetString("column")
+		if err != nil {
+			fmt.Println("There was an error parsing command flag 'column': ", err.Error())
 			return
 		}
 
@@ -47,7 +59,8 @@ var encryptColumnCmd = &cobra.Command{
 			fmt.Println("Failed to extract keys from env.php: ", err.Error())
 		}
 
-		err = encryptor.Column(db, latestKey, envPath, dryRun)
+		e := encryptor.New(db, latestKey, envPath, dryRun)
+		err = e.Column(table, column)
 		if err != nil {
 			fmt.Println(err.Error())
 			return
